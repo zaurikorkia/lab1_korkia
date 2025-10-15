@@ -1,0 +1,106 @@
+1. caesar sipher
+
+import string
+from collections import Counter
+cipher = "Hvs Eiwqy Pfckb Tcl Xiadg Cjsf Hvs Zonm Rcu."
+def caesar_shift(s, shift):
+    result = []
+    for ch in s:
+        if ch.isalpha():
+            alpha = string.ascii_lowercase if ch.islower() else string.ascii_uppercase
+            idx = alpha.index(ch)
+            result.append(alpha[(idx - shift) % 26])
+        else:
+            result.append(ch)
+    return "".join(result)
+print("Brute-force results (shift -> plaintext):")
+for shift in range(26):
+    print(f"{shift:2d}: {caesar_shift(cipher, shift)}")
+def score_english_like(text):
+    text_low = text.lower()
+    score = 0
+    common_words = [" the ", " and ", " to ", " of ", " is ", " that ", " quick ", " fox ", " jumps "]
+    for w in common_words:
+        if w in text_low:
+            score += 10
+    freq = Counter(ch for ch in text_low if ch.isalpha())
+    for ch in "etaoin":
+        score += freq.get(ch, 0)
+    return score
+candidates = [(shift, caesar_shift(cipher, shift), score_english_like(caesar_shift(cipher, shift))) for shift in range(26)]
+candidates.sort(key=lambda x: -x[2])
+best = candidates[0]
+print("\nBest candidate by simple heuristic:")
+print(f"shift={best[0]} score={best[2]} -> {best[1]}")
+
+
+2. XOR encryption/decryption
+
+
+
+import string
+import base64
+import itertools
+cipher_caesar = "mznxpz"
+b64_ct = "Jw0KBlIMAEUXHRdFKyoxVRENEgkPEBwCFkQ="
+
+def caesar_shift(s, shift):
+    res = []
+    for ch in s:
+        if ch.isalpha():
+            alpha = string.ascii_lowercase if ch.islower() else string.ascii_uppercase
+            idx = alpha.index(ch)
+            res.append(alpha[(idx - shift) % 26])
+        else:
+            res.append(ch)
+    return "".join(res)
+
+def repeating_key_xor(data_bytes, key_bytes):
+    out = bytearray()
+    klen = len(key_bytes)
+    for i, b in enumerate(data_bytes):
+        out.append(b ^ key_bytes[i % klen])
+    return bytes(out)
+
+print("Step 1 — Caesar brute-force for:", cipher_caesar)
+candidates = []
+for shift in range(26):
+    pt = caesar_shift(cipher_caesar, shift)
+    candidates.append((shift, pt))
+    print(f" shift={shift:2d} -> {pt}")
+
+likely = [pt for s,pt in candidates if any(v in pt for v in "aeiou")]
+print("\nLikely candidates (contain vowels):", likely)
+
+recovered_word = None
+used_shift = None
+for shift, pt in candidates:
+    if pt == "rescue":
+        recovered_word = pt
+        used_shift = shift
+        break
+
+if recovered_word:
+    passphrase = "secure"
+    print(f"\nStep 2 — found decrypted word '{recovered_word}' (shift={used_shift});")
+    print(f" anagram -> using passphrase: '{passphrase}'")
+else:
+    print("\nStep 2 — could not auto-detect the anagram. Please supply the passphrase.")
+    passphrase = None
+
+if passphrase:
+    ct_bytes = base64.b64decode(b64_ct)
+    pt_bytes = repeating_key_xor(ct_bytes, passphrase.encode('utf-8'))
+    try:
+        plaintext = pt_bytes.decode('utf-8')
+        print("\nStep 3 — Decrypted plaintext (utf-8):")
+        print(plaintext)
+    except UnicodeDecodeError:
+        print("\nStep 3 — Decrypted bytes (hex):")
+        print(pt_bytes.hex())
+else:
+    print("\nNo passphrase available — cannot proceed to XOR decryption.")
+
+
+
+
